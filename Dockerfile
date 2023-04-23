@@ -22,8 +22,6 @@ WORKDIR /app
 
 COPY . .
 
-RUN go build ./...
-
-COPY /cmd/microblog/microblog /microblog
+RUN go build -o /microblog
 
 ENTRYPOINT ["/microblog"]
