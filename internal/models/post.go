@@ -1,16 +1,14 @@
 package models
 
-import "time"
-
 type PostID string
 
 type UserID string
 
 type Post struct {
-	Id        PostID    `json:"id"`
-	Text      string    `json:"text"`
-	AuthorId  UserID    `json:"authorId"`
-	CreatedAt time.Time `json:"createdAt"`
+	Id        PostID `json:"id"`
+	Text      string `json:"text"`
+	AuthorId  UserID `json:"authorId"`
+	CreatedAt string `json:"createdAt"`
 }
 
 type PostsPage struct {

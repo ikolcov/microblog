@@ -27,9 +27,6 @@ func getServerPort() uint16 {
 func main() {
 	port := getServerPort()
 	router := mux.NewRouter()
-	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		_ = utils.RespondJSON(w, http.StatusOK, "API is up and working!")
-	})
 
 	s := storage.NewPostsStorage()
 	router.HandleFunc("/api/v1/posts", func(w http.ResponseWriter, r *http.Request) {
@@ -41,7 +38,7 @@ func main() {
 		}
 
 		post.AuthorId = models.UserID(r.Header.Get("System-Design-User-Id"))
-		post.CreatedAt = time.Now()
+		post.CreatedAt = time.Now().Format("2006-01-02T15:04:05Z")
 
 		postId, err := s.AddPost(post)
 		if errors.Is(err, storage.ErrUnauthorized) {

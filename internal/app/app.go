@@ -40,7 +40,7 @@ func (a *App) addPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	post.AuthorId = models.UserID(r.Header.Get("System-Design-User-Id"))
-	post.CreatedAt = time.Now()
+	post.CreatedAt = time.Now().Format("2006-01-02T15:04:05Z")
 
 	postId, err := a.storage.AddPost(post)
 	if errors.Is(err, storage.ErrUnauthorized) {
