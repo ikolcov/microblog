@@ -24,4 +24,6 @@ COPY . .
 
 RUN go build ./...
 
-CMD ["./cmd/microblog/microblog"]
+COPY /cmd/microblog/microblog /microblog
+
+ENTRYPOINT ["/microblog"]
