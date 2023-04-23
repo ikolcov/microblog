@@ -52,7 +52,11 @@ func (a *App) addPost(w http.ResponseWriter, r *http.Request) {
 	}
 	post.Id = postId
 
-	utils.RespondJSON(w, http.StatusOK, post)
+	err = utils.RespondJSON(w, http.StatusOK, post)
+	if err != nil {
+		utils.BadRequest(w, err.Error())
+		return
+	}
 }
 
 func (a *App) getPost(w http.ResponseWriter, r *http.Request) {
@@ -65,7 +69,11 @@ func (a *App) getPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.RespondJSON(w, http.StatusOK, post)
+	err = utils.RespondJSON(w, http.StatusOK, post)
+	if err != nil {
+		utils.BadRequest(w, err.Error())
+		return
+	}
 }
 
 func getParam(r *http.Request, key string, defaultValue int) (int, error) {
@@ -98,7 +106,11 @@ func (a *App) getUserPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.RespondJSON(w, http.StatusOK, postsPage)
+	err = utils.RespondJSON(w, http.StatusOK, postsPage)
+	if err != nil {
+		utils.BadRequest(w, err.Error())
+		return
+	}
 }
 
 func (a *App) initRoutes() http.Handler {

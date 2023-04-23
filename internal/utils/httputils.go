@@ -15,6 +15,7 @@ func RespondJSON(w http.ResponseWriter, status int, data interface{}) error {
 	w.WriteHeader(status)
 
 	_, _ = w.Write(response)
+	_, _ = w.Write([]byte("\n"))
 
 	return nil
 }
@@ -22,14 +23,17 @@ func RespondJSON(w http.ResponseWriter, status int, data interface{}) error {
 func Unauthorized(w http.ResponseWriter, message string) {
 	w.WriteHeader(http.StatusUnauthorized)
 	_, _ = w.Write([]byte(message))
+	_, _ = w.Write([]byte("\n"))
 }
 
 func NotFound(w http.ResponseWriter, message string) {
 	w.WriteHeader(http.StatusNotFound)
 	_, _ = w.Write([]byte(message))
+	_, _ = w.Write([]byte("\n"))
 }
 
 func BadRequest(w http.ResponseWriter, message string) {
 	w.WriteHeader(http.StatusBadRequest)
 	_, _ = w.Write([]byte(message))
+	_, _ = w.Write([]byte("\n"))
 }
