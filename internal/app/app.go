@@ -35,7 +35,8 @@ func (a *App) addPost(w http.ResponseWriter, r *http.Request) {
 	var post models.Post
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&post); err != nil {
-		panic(err)
+		utils.BadRequest(w, err.Error())
+		return
 	}
 
 	post.AuthorId = models.UserID(r.Header.Get("System-Design-User-Id"))
@@ -46,7 +47,8 @@ func (a *App) addPost(w http.ResponseWriter, r *http.Request) {
 		utils.Unauthorized(w, err.Error())
 		return
 	} else if err != nil {
-		panic(err)
+		utils.BadRequest(w, err.Error())
+		return
 	}
 	post.Id = postId
 
@@ -59,7 +61,8 @@ func (a *App) getPost(w http.ResponseWriter, r *http.Request) {
 		utils.NotFound(w, err.Error())
 		return
 	} else if err != nil {
-		panic(err)
+		utils.BadRequest(w, err.Error())
+		return
 	}
 
 	utils.RespondJSON(w, http.StatusOK, post)
@@ -91,7 +94,8 @@ func (a *App) getUserPosts(w http.ResponseWriter, r *http.Request) {
 		utils.BadRequest(w, err.Error())
 		return
 	} else if err != nil {
-		panic(err)
+		utils.BadRequest(w, err.Error())
+		return
 	}
 
 	utils.RespondJSON(w, http.StatusOK, postsPage)
