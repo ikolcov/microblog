@@ -65,22 +65,31 @@ func (a *App) getPost(w http.ResponseWriter, r *http.Request) {
 	utils.RespondJSON(w, http.StatusOK, post)
 }
 
-func getParam(r *http.Request, key string, defaultValue int) int {
+func getParam(r *http.Request, key string, defaultValue int) (int, error) {
 	param := r.URL.Query().Get(key)
-	if parsedParam, err := strconv.Atoi(param); err == nil {
-		return parsedParam
+	if param == "" {
+		return defaultValue, nil
 	}
-	return defaultValue
+	return strconv.Atoi(param)
 }
 
 func (a *App) getUserPosts(w http.ResponseWriter, r *http.Request) {
 	userId := models.UserID(chi.URLParam(r, "userId"))
-	page := getParam(r, "page", 1)
-	size := getParam(r, "size", 10)
+	page, err := getParam(r, "page", 1)
+	if err != nil || page < 1 {
+		utils.BadRequest(w, "invalid page")
+		return
+	}
+	size, err := getParam(r, "size", 10)
+	if err != nil || size < 1 || size > 100 {
+		utils.BadRequest(w, "invalid size")
+		return
+	}
 
 	postsPage, err := a.storage.GetUserPosts(userId, page, size)
 	if errors.Is(err, storage.ErrBadRequest) {
 		utils.BadRequest(w, err.Error())
+		return
 	} else if err != nil {
 		panic(err)
 	}
