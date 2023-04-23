@@ -58,7 +58,7 @@ func (s *PostsStorage) GetUserPosts(userId models.UserID, page int, size int) (m
 	}
 
 	from := (page - 1) * size
-	if from < 0 || from >= len(postIds) {
+	if from < 0 || from > len(postIds) {
 		return *new(models.PostsPage), ErrBadRequest
 	}
 	to := from + size
