@@ -26,32 +26,37 @@ var ErrNotFound = errors.New("post is not found")
 var ErrBadRequest = errors.New("bad page token")
 
 func (s *PostsStorage) AddPost(post models.Post) (models.PostID, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	if post.AuthorId == "" {
 		return *new(models.PostID), ErrUnauthorized
 	}
 
-	s.mutex.Lock()
 	id := len(s.posts)
 	post.Id = models.PostID(fmt.Sprint(id))
 	s.posts = append(s.posts, post)
 	s.postsByUser[post.AuthorId] = append(s.postsByUser[post.AuthorId], id)
-	s.mutex.Unlock()
 
 	return post.Id, nil
 }
+
 func (s *PostsStorage) GetPost(postId models.PostID) (models.Post, error) {
 	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
 	id, err := strconv.Atoi(string(postId))
 	if err != nil || id < 0 || id >= len(s.posts) {
-		s.mutex.RUnlock()
 		return *new(models.Post), ErrNotFound
 	}
 	post := s.posts[id]
-	s.mutex.RUnlock()
 	return post, nil
 }
+
 func (s *PostsStorage) GetUserPosts(userId models.UserID, page int, size int) (models.PostsPage, error) {
 	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
 	posts := s.postsByUser[userId]
 	postIds := make([]int, 0)
 	for i := len(posts) - 1; i >= 0; i-- {
@@ -60,7 +65,6 @@ func (s *PostsStorage) GetUserPosts(userId models.UserID, page int, size int) (m
 
 	from := (page - 1) * size
 	if from < 0 || from > len(postIds) {
-		s.mutex.RUnlock()
 		return *new(models.PostsPage), ErrBadRequest
 	}
 	to := from + size
@@ -79,10 +83,10 @@ func (s *PostsStorage) GetUserPosts(userId models.UserID, page int, size int) (m
 	if to < len(posts) {
 		postsPage.NextPage = fmt.Sprint(page + 1)
 	}
-	s.mutex.RUnlock()
 
 	return postsPage, nil
 }
+
 func NewPostsStorage() Storage {
 	return &PostsStorage{
 		posts:       make([]models.Post, 0),
