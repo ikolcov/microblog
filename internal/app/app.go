@@ -113,20 +113,14 @@ func (a *App) getUserPosts(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *App) initRoutes() http.Handler {
+func (a *App) Start() {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
 
-	r.Route("/api/v1/posts", func(r chi.Router) {
-		r.Post("/", a.addPost)
-		r.Get("/{postId}", a.getPost)
-	})
+	r.Post("/api/v1/posts", a.addPost)
+	r.Get("/api/v1/posts/{postId}", a.getPost)
 	r.Get("/api/v1/users/{userId}/posts", a.getUserPosts)
-	return r
-}
 
-func (a *App) Start() {
-	handler := a.initRoutes()
-	http.ListenAndServe(fmt.Sprintf(":%v", a.config.Port), handler)
+	http.ListenAndServe(fmt.Sprintf(":%v", a.config.Port), r)
 }
