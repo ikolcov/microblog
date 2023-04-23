@@ -43,6 +43,7 @@ func (s *PostsStorage) GetPost(postId models.PostID) (models.Post, error) {
 	s.mutex.RLock()
 	id, err := strconv.Atoi(string(postId))
 	if err != nil || id < 0 || id >= len(s.posts) {
+		s.mutex.RUnlock()
 		return *new(models.Post), ErrNotFound
 	}
 	post := s.posts[id]
@@ -59,6 +60,7 @@ func (s *PostsStorage) GetUserPosts(userId models.UserID, page int, size int) (m
 
 	from := (page - 1) * size
 	if from < 0 || from > len(postIds) {
+		s.mutex.RUnlock()
 		return *new(models.PostsPage), ErrBadRequest
 	}
 	to := from + size

@@ -8,7 +8,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/middleware"
+	"github.com/go-chi/chi/v5"
 	"github.com/ikolcov/microblog/internal/models"
 	"github.com/ikolcov/microblog/internal/storage"
 	"github.com/ikolcov/microblog/internal/utils"
@@ -59,7 +60,7 @@ func (a *App) addPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) getPost(w http.ResponseWriter, r *http.Request) {
-	post, err := a.storage.GetPost(models.PostID(mux.Vars(r)["postId"]))
+	post, err := a.storage.GetPost(models.PostID(chi.URLParam(r, "postId")))
 	if errors.Is(err, storage.ErrNotFound) {
 		utils.NotFound(w, err.Error())
 		return
@@ -84,7 +85,7 @@ func getParam(r *http.Request, key string, defaultValue int) (int, error) {
 }
 
 func (a *App) getUserPosts(w http.ResponseWriter, r *http.Request) {
-	userId := models.UserID(mux.Vars(r)["userId"])
+	userId := models.UserID(chi.URLParam(r, "userId"))
 	page, err := getParam(r, "page", 1)
 	if err != nil || page < 1 {
 		utils.BadRequest(w, "invalid page")
@@ -113,11 +114,13 @@ func (a *App) getUserPosts(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) Start() {
-	router := mux.NewRouter()
+	r := chi.NewRouter()
+	r.Use(middleware.RequestID)
+	r.Use(middleware.Logger)
 
-	router.HandleFunc("/api/v1/posts", a.addPost).Methods("POST")
-	router.HandleFunc("/api/v1/posts/{postId}", a.getPost).Methods("GET")
-	router.HandleFunc("/api/v1/users/{userId}/posts", a.getUserPosts).Methods("GET")
+	r.Post("/api/v1/posts", a.addPost)
+	r.Get("/api/v1/posts/{postId}", a.getPost)
+	r.Get("/api/v1/users/{userId}/posts", a.getUserPosts)
 
-	http.ListenAndServe(fmt.Sprintf(":%v", a.config.Port), router)
+	http.ListenAndServe(fmt.Sprintf(":%v", a.config.Port), r)
 }
