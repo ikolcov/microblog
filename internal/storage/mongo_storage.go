@@ -58,6 +58,11 @@ func (s *MongoStorage) GetUserPosts(userId models.UserID, page int, size int) (m
 		if err := cur.Decode(&elem); err != nil {
 			return postsPage, err
 		}
+		var id models.HexId
+		if err := cur.Decode(&id); err != nil {
+			return postsPage, err
+		}
+		elem.Id = models.PostID(id.ID.Hex())
 		posts = append(posts, elem)
 	}
 	if err := cur.Err(); err != nil {
@@ -101,7 +106,7 @@ func NewMongoStorage(mongoUrl string, mongoDbName string) Storage {
 		log.Fatal(err)
 	}
 
-	posts := client.Database(mongoDbName).Collection("posts")
+	posts := client.Database(mongoDbName).Collection("postz")
 	return &MongoStorage{
 		posts: posts,
 	}
