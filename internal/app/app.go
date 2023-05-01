@@ -15,8 +15,18 @@ import (
 	"github.com/ikolcov/microblog/internal/utils"
 )
 
+type StorageMode uint16
+
+const (
+	InMemory StorageMode = iota
+	Mongo
+)
+
 type AppConfig struct {
-	Port uint16
+	Port        uint16
+	Mode        StorageMode
+	MongoUrl    string
+	MongoDbName string
 }
 
 type App struct {
@@ -25,9 +35,18 @@ type App struct {
 }
 
 func New(config AppConfig) *App {
+	var appStorage storage.Storage
+	switch config.Mode {
+	case InMemory:
+		appStorage = storage.NewInMemoryStorage()
+	case Mongo:
+		appStorage = storage.NewMongoStorage(config.MongoUrl, config.MongoDbName)
+	default:
+		panic("Unknown storage type")
+	}
 	return &App{
 		config:  config,
-		storage: storage.NewPostsStorage(),
+		storage: appStorage,
 	}
 }
 
@@ -43,7 +62,7 @@ func (a *App) addPost(w http.ResponseWriter, r *http.Request) {
 	post.CreatedAt = time.Now().Format("2006-01-02T15:04:05Z")
 
 	postId, err := a.storage.AddPost(post)
-	if errors.Is(err, storage.ErrUnauthorized) {
+	if errors.Is(err, models.ErrUnauthorized) {
 		utils.Unauthorized(w, err.Error())
 		return
 	} else if err != nil {
@@ -61,7 +80,7 @@ func (a *App) addPost(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) getPost(w http.ResponseWriter, r *http.Request) {
 	post, err := a.storage.GetPost(models.PostID(chi.URLParam(r, "postId")))
-	if errors.Is(err, storage.ErrNotFound) {
+	if errors.Is(err, models.ErrNotFound) {
 		utils.NotFound(w, err.Error())
 		return
 	} else if err != nil {
@@ -98,7 +117,7 @@ func (a *App) getUserPosts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	postsPage, err := a.storage.GetUserPosts(userId, page, size)
-	if errors.Is(err, storage.ErrBadRequest) {
+	if errors.Is(err, models.ErrBadRequest) {
 		utils.BadRequest(w, err.Error())
 		return
 	} else if err != nil {
@@ -113,6 +132,10 @@ func (a *App) getUserPosts(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (a *App) Ping(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+}
+
 func (a *App) Start() {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -121,6 +144,7 @@ func (a *App) Start() {
 	r.Post("/api/v1/posts", a.addPost)
 	r.Get("/api/v1/posts/{postId}", a.getPost)
 	r.Get("/api/v1/users/{userId}/posts", a.getUserPosts)
+	r.Get("/maintenance/ping", a.Ping)
 
 	http.ListenAndServe(fmt.Sprintf(":%v", a.config.Port), r)
 }

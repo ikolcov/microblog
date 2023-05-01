@@ -16,9 +16,22 @@ func getServerPort() uint16 {
 	panic("Port should be set in env var SERVER_PORT")
 }
 
+func getStorageMode() app.StorageMode {
+	switch os.Getenv("STORAGE_MODE") {
+	case "inmemory":
+		return app.InMemory
+	case "mongo":
+		return app.Mongo
+	}
+	panic("Storage mode should be set in env var STORAGE_MODE")
+}
+
 func main() {
 	config := app.AppConfig{
-		Port: getServerPort(),
+		Port:        getServerPort(),
+		Mode:        getStorageMode(),
+		MongoUrl:    os.Getenv("MONGO_URL"),
+		MongoDbName: os.Getenv("MONGO_DBNAME"),
 	}
 
 	app.New(config).Start()
