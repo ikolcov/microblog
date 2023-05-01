@@ -106,7 +106,16 @@ func NewMongoStorage(mongoUrl string, mongoDbName string) Storage {
 		log.Fatal(err)
 	}
 
-	posts := client.Database(mongoDbName).Collection("postz")
+	posts := client.Database(mongoDbName).Collection("postx")
+
+	indexModel := mongo.IndexModel{
+		Keys: bson.D{{"authorid", 1}},
+	}
+	_, err = posts.Indexes().CreateOne(context.TODO(), indexModel)
+	if err != nil {
+		panic(err)
+	}
+
 	return &MongoStorage{
 		posts: posts,
 	}
