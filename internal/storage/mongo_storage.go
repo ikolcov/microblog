@@ -33,15 +33,15 @@ func (s *MongoStorage) AddPost(post models.Post) (models.PostID, error) {
 func (s *MongoStorage) GetPost(postId models.PostID) (models.Post, error) {
 	id, err := primitive.ObjectIDFromHex(string(postId))
 	if err != nil {
-		return *new(models.Post), err
+		return *new(models.Post), models.ErrNotFound
 	}
 
 	var result models.Post
-
 	err = s.posts.FindOne(context.TODO(), bson.M{"_id": id}).Decode(&result)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return *new(models.Post), models.ErrNotFound
 	}
+	result.Id = postId
 	return result, err
 }
 
