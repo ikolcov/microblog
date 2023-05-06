@@ -132,8 +132,42 @@ func (a *App) getUserPosts(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *App) Ping(w http.ResponseWriter, r *http.Request) {
+func (a *App) ping(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
+}
+
+func (a *App) updatePost(w http.ResponseWriter, r *http.Request) {
+	var post models.Post
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&post); err != nil {
+		utils.BadRequest(w, err.Error())
+		return
+	}
+
+	post.AuthorId = models.UserID(r.Header.Get("System-Design-User-Id"))
+	post.Id = models.PostID(chi.URLParam(r, "postId"))
+	post.LastModifiedAt = time.Now().Format("2006-01-02T15:04:05Z")
+
+	post, err := a.storage.UpdatePost(post)
+	if errors.Is(err, models.ErrUnauthorized) {
+		utils.Unauthorized(w, err.Error())
+		return
+	} else if errors.Is(err, models.ErrFobidden) {
+		utils.Forbidden(w, err.Error())
+		return
+	} else if errors.Is(err, models.ErrNotFound) {
+		utils.NotFound(w, err.Error())
+		return
+	} else if err != nil {
+		utils.BadRequest(w, err.Error())
+		return
+	}
+
+	err = utils.RespondJSON(w, http.StatusOK, post)
+	if err != nil {
+		utils.BadRequest(w, err.Error())
+		return
+	}
 }
 
 func (a *App) Start() {
@@ -144,7 +178,8 @@ func (a *App) Start() {
 	r.Post("/api/v1/posts", a.addPost)
 	r.Get("/api/v1/posts/{postId}", a.getPost)
 	r.Get("/api/v1/users/{userId}/posts", a.getUserPosts)
-	r.Get("/maintenance/ping", a.Ping)
+	r.Get("/maintenance/ping", a.ping)
+	r.Patch("/api/v1/posts/{postId}", a.updatePost)
 
 	http.ListenAndServe(fmt.Sprintf(":%v", a.config.Port), r)
 }

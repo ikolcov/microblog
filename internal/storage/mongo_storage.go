@@ -45,6 +45,10 @@ func (s *MongoStorage) GetPost(postId models.PostID) (models.Post, error) {
 	return result, err
 }
 
+func (s *MongoStorage) UpdatePost(postUpdate models.Post) (models.Post, error) {
+	return *new(models.Post), nil
+}
+
 func (s *MongoStorage) GetUserPosts(userId models.UserID, page int, size int) (models.PostsPage, error) {
 	findOptions := options.Find()
 	postsPage := models.PostsPage{}

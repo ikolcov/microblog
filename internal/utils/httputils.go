@@ -20,20 +20,26 @@ func RespondJSON(w http.ResponseWriter, status int, data interface{}) error {
 	return nil
 }
 
+func BadRequest(w http.ResponseWriter, message string) {
+	w.WriteHeader(http.StatusBadRequest)
+	_, _ = w.Write([]byte(message))
+	_, _ = w.Write([]byte("\n"))
+}
+
 func Unauthorized(w http.ResponseWriter, message string) {
 	w.WriteHeader(http.StatusUnauthorized)
 	_, _ = w.Write([]byte(message))
 	_, _ = w.Write([]byte("\n"))
 }
 
-func NotFound(w http.ResponseWriter, message string) {
-	w.WriteHeader(http.StatusNotFound)
+func Forbidden(w http.ResponseWriter, message string) {
+	w.WriteHeader(http.StatusForbidden)
 	_, _ = w.Write([]byte(message))
 	_, _ = w.Write([]byte("\n"))
 }
 
-func BadRequest(w http.ResponseWriter, message string) {
-	w.WriteHeader(http.StatusBadRequest)
+func NotFound(w http.ResponseWriter, message string) {
+	w.WriteHeader(http.StatusNotFound)
 	_, _ = w.Write([]byte(message))
 	_, _ = w.Write([]byte("\n"))
 }

@@ -42,6 +42,30 @@ func (s *InMemoryStorage) GetPost(postId models.PostID) (models.Post, error) {
 	return post, nil
 }
 
+func (s *InMemoryStorage) UpdatePost(postUpdate models.Post) (models.Post, error) {
+	if postUpdate.AuthorId == "" {
+		return *new(models.Post), models.ErrUnauthorized
+	}
+	post, err := s.GetPost(postUpdate.Id)
+	if err != nil {
+		return *new(models.Post), err
+	}
+	if post.AuthorId != postUpdate.AuthorId {
+		return *new(models.Post), models.ErrFobidden
+	}
+
+	post.Text = postUpdate.Text
+	post.LastModifiedAt = postUpdate.LastModifiedAt
+
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	id, _ := strconv.Atoi(string(post.Id))
+	s.posts[id] = post
+
+	return post, nil
+}
+
 func (s *InMemoryStorage) GetUserPosts(userId models.UserID, page int, size int) (models.PostsPage, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()

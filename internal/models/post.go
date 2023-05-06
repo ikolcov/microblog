@@ -7,10 +7,11 @@ type PostID string
 type UserID string
 
 type Post struct {
-	Id        PostID `json:"id"`
-	Text      string `json:"text"`
-	AuthorId  UserID `json:"authorId"`
-	CreatedAt string `json:"createdAt"`
+	Id             PostID `json:"id"`
+	Text           string `json:"text"`
+	AuthorId       UserID `json:"authorId"`
+	CreatedAt      string `json:"createdAt"`
+	LastModifiedAt string `json:"lastModifiedAt"`
 }
 
 type HexId struct {
