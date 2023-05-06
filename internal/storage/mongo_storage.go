@@ -46,7 +46,27 @@ func (s *MongoStorage) GetPost(postId models.PostID) (models.Post, error) {
 }
 
 func (s *MongoStorage) UpdatePost(postUpdate models.Post) (models.Post, error) {
-	return *new(models.Post), nil
+	if postUpdate.AuthorId == "" {
+		return *new(models.Post), models.ErrUnauthorized
+	}
+	post, err := s.GetPost(postUpdate.Id)
+	if err != nil {
+		return *new(models.Post), err
+	}
+	if post.AuthorId != postUpdate.AuthorId {
+		return *new(models.Post), models.ErrFobidden
+	}
+
+	id, _ := primitive.ObjectIDFromHex(string(postUpdate.Id))
+	filter := bson.D{{"_id", id}}
+	update := bson.D{{"$set", bson.D{{"text", postUpdate.Text}, {"lastmodifiedat", postUpdate.LastModifiedAt}}}}
+
+	if _, err := s.posts.UpdateOne(context.TODO(), filter, update); err != nil {
+		return *new(models.Post), err
+	}
+	post.Text = postUpdate.Text
+	post.LastModifiedAt = postUpdate.LastModifiedAt
+	return post, nil
 }
 
 func (s *MongoStorage) GetUserPosts(userId models.UserID, page int, size int) (models.PostsPage, error) {
