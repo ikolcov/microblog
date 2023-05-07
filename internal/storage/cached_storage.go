@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/ikolcov/microblog/internal/models"
@@ -58,7 +57,6 @@ func (s *CachedStorage) store(post models.Post) {
 	if err := s.client.Set(context.TODO(), s.redisKey(post.Id), value, time.Hour).Err(); err != nil {
 		panic(err)
 	}
-	fmt.Println("successful store", post.Id)
 }
 
 func (s *CachedStorage) load(postId models.PostID) *models.Post {
@@ -73,7 +71,6 @@ func (s *CachedStorage) load(postId models.PostID) *models.Post {
 	if err := json.Unmarshal([]byte(result), &post); err != nil {
 		panic(err)
 	}
-	fmt.Println("successful load", post.Id)
 	return &post
 }
 
