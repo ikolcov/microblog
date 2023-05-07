@@ -22,6 +22,8 @@ func getStorageMode() app.StorageMode {
 		return app.InMemory
 	case "mongo":
 		return app.Mongo
+	case "cached":
+		return app.Mongo
 	}
 	panic("Storage mode should be set in env var STORAGE_MODE")
 }
