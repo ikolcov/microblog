@@ -23,7 +23,7 @@ func getStorageMode() app.StorageMode {
 	case "mongo":
 		return app.Mongo
 	case "cached":
-		return app.Mongo
+		return app.Cached
 	}
 	panic("Storage mode should be set in env var STORAGE_MODE")
 }
@@ -34,6 +34,7 @@ func main() {
 		Mode:        getStorageMode(),
 		MongoUrl:    os.Getenv("MONGO_URL"),
 		MongoDbName: os.Getenv("MONGO_DBNAME"),
+		RedisUrl:    os.Getenv("REDIS_URL"),
 	}
 
 	app.New(config).Start()

@@ -20,6 +20,7 @@ type StorageMode uint16
 const (
 	InMemory StorageMode = iota
 	Mongo
+	Cached
 )
 
 type AppConfig struct {
@@ -27,6 +28,7 @@ type AppConfig struct {
 	Mode        StorageMode
 	MongoUrl    string
 	MongoDbName string
+	RedisUrl    string
 }
 
 type App struct {
@@ -41,6 +43,8 @@ func New(config AppConfig) *App {
 		appStorage = storage.NewInMemoryStorage()
 	case Mongo:
 		appStorage = storage.NewMongoStorage(config.MongoUrl, config.MongoDbName)
+	case Cached:
+		appStorage = storage.NewCachedStorage(config.RedisUrl, storage.NewMongoStorage(config.MongoUrl, config.MongoDbName))
 	default:
 		panic("Unknown storage type")
 	}
