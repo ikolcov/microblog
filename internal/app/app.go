@@ -46,7 +46,7 @@ func (a *App) addPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	post.AuthorId = models.UserID(r.Header.Get("System-Design-User-Id"))
-	post.CreatedAt = time.Now().Format("2006-01-02T15:04:05Z")
+	post.CreatedAt = time.Now().Format("2006-01-02T15:04:05.999Z")
 	post.LastModifiedAt = post.CreatedAt
 
 	postId, err := a.storage.AddPost(post)
@@ -134,7 +134,7 @@ func (a *App) updatePost(w http.ResponseWriter, r *http.Request) {
 
 	post.AuthorId = models.UserID(r.Header.Get("System-Design-User-Id"))
 	post.Id = models.PostID(chi.URLParam(r, "postId"))
-	post.LastModifiedAt = time.Now().Format("2006-01-02T15:04:05Z")
+	post.LastModifiedAt = time.Now().Format("2006-01-02T15:04:05.999Z")
 
 	post, err := a.storage.UpdatePost(post)
 	if errors.Is(err, models.ErrUnauthorized) {
