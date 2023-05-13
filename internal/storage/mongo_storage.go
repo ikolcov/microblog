@@ -119,7 +119,7 @@ func (s *MongoStorage) GetUserPosts(userId models.UserID, page int, size int) (m
 
 func getPostsPage(posts []models.Post, page int, size int) (models.PostsPage, error) {
 	sort.Slice(posts, func(i, j int) bool {
-		return posts[i].CreatedAt > posts[j].CreatedAt
+		return posts[i].CreatedTime.After(posts[j].CreatedTime)
 	})
 
 	from := (page - 1) * size

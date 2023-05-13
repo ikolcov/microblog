@@ -46,7 +46,8 @@ func (a *App) addPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	post.AuthorId = models.UserID(r.Header.Get("System-Design-User-Id"))
-	post.CreatedAt = time.Now().Format("2006-01-02T15:04:05.999Z")
+	post.CreatedTime = time.Now()
+	post.CreatedAt = post.CreatedTime.Format("2006-01-02T15:04:05.999Z")
 	post.LastModifiedAt = post.CreatedAt
 
 	postId, err := a.storage.AddPost(post)

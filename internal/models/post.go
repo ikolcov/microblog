@@ -1,6 +1,10 @@
 package models
 
-import "go.mongodb.org/mongo-driver/bson/primitive"
+import (
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
 
 type PostID string
 
@@ -11,11 +15,12 @@ type UsersList struct {
 }
 
 type Post struct {
-	Id             PostID `json:"id"`
-	Text           string `json:"text"`
-	AuthorId       UserID `json:"authorId"`
-	CreatedAt      string `json:"createdAt"`
-	LastModifiedAt string `json:"lastModifiedAt"`
+	Id             PostID    `json:"id"`
+	Text           string    `json:"text"`
+	AuthorId       UserID    `json:"authorId"`
+	CreatedAt      string    `json:"createdAt"`
+	LastModifiedAt string    `json:"lastModifiedAt"`
+	CreatedTime    time.Time `json:"-"`
 }
 
 type HexId struct {
