@@ -18,6 +18,7 @@ import (
 type MongoStorage struct {
 	posts         *mongo.Collection
 	subscriptions *mongo.Collection
+	feed          *mongo.Collection
 }
 
 func addIndex(collection *mongo.Collection, field string) {
@@ -144,6 +145,10 @@ func (s *MongoStorage) AddSubscription(subscription models.Subscription) error {
 		return models.ErrBadRequest
 	}
 
+	s.subscriptions.InsertOne(context.TODO(), models.Feed{
+		User:  subscription.From,
+		Posts: make([]models.Post, 0),
+	})
 	_, err := s.subscriptions.InsertOne(context.TODO(), subscription)
 	if err != nil && strings.Contains(err.Error(), "duplicate") {
 		return nil
@@ -193,21 +198,37 @@ func (s *MongoStorage) GetSubscribers(userId models.UserID) (models.UsersList, e
 	return models.UsersList{users}, nil
 }
 
-func (s *MongoStorage) GetFeed(userId models.UserID, page int, size int) (models.PostsPage, error) {
+func (s *MongoStorage) updateUserFeed(userId models.UserID) error {
 	subscriptions, err := s.GetSubscriptions(userId)
 	if err != nil {
-		return models.PostsPage{}, err
+		return err
 	}
 
 	allPosts := make([]models.Post, 0)
 	for _, userId := range subscriptions.Users {
 		allUserPosts, err := s.getAllUserPosts(userId)
 		if err != nil {
-			return models.PostsPage{}, err
+			return err
 		}
 		allPosts = append(allPosts, allUserPosts...)
 	}
-	return getPostsPage(allPosts, page, size)
+
+	filter := bson.D{{"user", userId}}
+	update := bson.D{{"$set", bson.D{{"posts", allPosts}}}}
+
+	_, err = s.feed.UpdateOne(context.TODO(), filter, update)
+	return err
+}
+
+func (s *MongoStorage) GetFeed(userId models.UserID, page int, size int) (models.PostsPage, error) {
+	s.updateUserFeed(userId)
+
+	var result models.Feed
+	err := s.feed.FindOne(context.TODO(), bson.M{"user": userId}).Decode(&result)
+	if err != nil {
+		return models.PostsPage{}, err
+	}
+	return getPostsPage(result.Posts, page, size)
 }
 
 func NewMongoStorage(mongoUrl string, mongoDbName string) *MongoStorage {
@@ -224,6 +245,7 @@ func NewMongoStorage(mongoUrl string, mongoDbName string) *MongoStorage {
 
 	posts := client.Database(mongoDbName).Collection("posts")
 	subscriptions := client.Database(mongoDbName).Collection("subscriptions")
+	feed := client.Database(mongoDbName).Collection("feed")
 
 	addIndex(posts, "authorid")
 	addIndex(subscriptions, "from")
@@ -236,8 +258,16 @@ func NewMongoStorage(mongoUrl string, mongoDbName string) *MongoStorage {
 		panic(err)
 	}
 
+	if _, err := feed.Indexes().CreateOne(context.TODO(), mongo.IndexModel{
+		Keys:    bson.D{{"user", 1}},
+		Options: options.Index().SetUnique(true),
+	}); err != nil {
+		panic(err)
+	}
+
 	return &MongoStorage{
 		posts:         posts,
 		subscriptions: subscriptions,
+		feed:          feed,
 	}
 }

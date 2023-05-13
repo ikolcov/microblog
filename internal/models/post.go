@@ -36,3 +36,8 @@ type Subscription struct {
 	From UserID
 	To   UserID
 }
+
+type Feed struct {
+	User  UserID
+	Posts []Post
+}
