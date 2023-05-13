@@ -115,14 +115,18 @@ func (s *MongoStorage) GetUserPosts(userId models.UserID, page int, size int) (m
 	if err != nil {
 		return models.PostsPage{}, err
 	}
+
+	l, r := 0, len(allUserPosts)-1
+	for l < r {
+		allUserPosts[l], allUserPosts[r] = allUserPosts[r], allUserPosts[l]
+		l++
+		r--
+	}
+
 	return getPostsPage(allUserPosts, page, size)
 }
 
 func getPostsPage(posts []models.Post, page int, size int) (models.PostsPage, error) {
-	sort.Slice(posts, func(i, j int) bool {
-		return posts[i].CreatedTime.After(posts[j].CreatedTime)
-	})
-
 	from := (page - 1) * size
 	if from < 0 || from > len(posts) {
 		return models.PostsPage{}, models.ErrBadRequest
@@ -212,6 +216,10 @@ func (s *MongoStorage) updateUserFeed(userId models.UserID) error {
 		}
 		allPosts = append(allPosts, allUserPosts...)
 	}
+
+	sort.Slice(allPosts, func(i, j int) bool {
+		return allPosts[i].CreatedTime.After(allPosts[j].CreatedTime)
+	})
 
 	filter := bson.D{{"user", userId}}
 	update := bson.D{{"$set", bson.D{{"posts", allPosts}}}}
