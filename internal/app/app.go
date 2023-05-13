@@ -196,8 +196,29 @@ func (a *App) getSubscribers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) getFeed(w http.ResponseWriter, r *http.Request) {
-	// userId := models.UserID(r.Header.Get("System-Design-User-Id"))
-	panic("not implemented")
+	userId := models.UserID(r.Header.Get("System-Design-User-Id"))
+	page, err := getParam(r, "page", 1)
+	if err != nil || page < 1 {
+		utils.BadRequest(w, "invalid page")
+		return
+	}
+	size, err := getParam(r, "size", 10)
+	if err != nil || size < 1 || size > 100 {
+		utils.BadRequest(w, "invalid size")
+		return
+	}
+
+	postsPage, err := a.storage.GetFeed(userId, page, size)
+	if err != nil {
+		utils.BadRequest(w, err.Error())
+		return
+	}
+
+	err = utils.RespondJSON(w, http.StatusOK, postsPage)
+	if err != nil {
+		utils.BadRequest(w, err.Error())
+		return
+	}
 }
 
 func (a *App) Start() {
