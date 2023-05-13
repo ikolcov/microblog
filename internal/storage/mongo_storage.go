@@ -149,7 +149,7 @@ func (s *MongoStorage) AddSubscription(subscription models.Subscription) error {
 		return models.ErrBadRequest
 	}
 
-	s.subscriptions.InsertOne(context.TODO(), models.Feed{
+	s.feed.InsertOne(context.TODO(), models.Feed{
 		User:  subscription.From,
 		Posts: make([]models.Post, 0),
 	})
@@ -229,11 +229,12 @@ func (s *MongoStorage) updateUserFeed(userId models.UserID) error {
 }
 
 func (s *MongoStorage) GetFeed(userId models.UserID, page int, size int) (models.PostsPage, error) {
-	s.updateUserFeed(userId)
+	if err := s.updateUserFeed(userId); err != nil {
+		return models.PostsPage{}, err
+	}
 
 	var result models.Feed
-	err := s.feed.FindOne(context.TODO(), bson.D{{"user", userId}}).Decode(&result)
-	if err != nil {
+	if err := s.feed.FindOne(context.TODO(), bson.D{{"user", userId}}).Decode(&result); err != nil {
 		return models.PostsPage{}, err
 	}
 	return getPostsPage(result.Posts, page, size)
