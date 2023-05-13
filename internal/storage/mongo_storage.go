@@ -232,7 +232,7 @@ func (s *MongoStorage) GetFeed(userId models.UserID, page int, size int) (models
 	s.updateUserFeed(userId)
 
 	var result models.Feed
-	err := s.feed.FindOne(context.TODO(), bson.M{"user": userId}).Decode(&result)
+	err := s.feed.FindOne(context.TODO(), bson.D{{"user", userId}}).Decode(&result)
 	if err != nil {
 		return models.PostsPage{}, err
 	}
