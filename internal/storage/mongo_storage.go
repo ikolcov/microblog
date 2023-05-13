@@ -82,31 +82,39 @@ func (s *MongoStorage) UpdatePost(postUpdate models.Post) (models.Post, error) {
 	return post, nil
 }
 
-func (s *MongoStorage) GetUserPosts(userId models.UserID, page int, size int) (models.PostsPage, error) {
+func (s *MongoStorage) getAllUserPosts(userId models.UserID) ([]models.Post, error) {
 	findOptions := options.Find()
 	cur, err := s.posts.Find(context.TODO(), bson.D{{"authorid", userId}}, findOptions)
 	if err != nil {
-		return models.PostsPage{}, err
+		return nil, err
 	}
 	posts := make([]models.Post, 0)
 	for cur.Next(context.TODO()) {
 		var elem models.Post
 		if err := cur.Decode(&elem); err != nil {
-			return models.PostsPage{}, err
+			return nil, err
 		}
 		var id models.HexId
 		if err := cur.Decode(&id); err != nil {
-			return models.PostsPage{}, err
+			return nil, err
 		}
 		elem.Id = models.PostID(id.ID.Hex())
 		posts = append(posts, elem)
 	}
 	if err := cur.Err(); err != nil {
-		return models.PostsPage{}, err
+		return nil, err
 	}
 	cur.Close(context.TODO())
 
-	return getPostsPage(posts, page, size)
+	return posts, nil
+}
+
+func (s *MongoStorage) GetUserPosts(userId models.UserID, page int, size int) (models.PostsPage, error) {
+	allUserPosts, err := s.getAllUserPosts(userId)
+	if err != nil {
+		return models.PostsPage{}, err
+	}
+	return getPostsPage(allUserPosts, page, size)
 }
 
 func getPostsPage(posts []models.Post, page int, size int) (models.PostsPage, error) {
@@ -186,7 +194,20 @@ func (s *MongoStorage) GetSubscribers(userId models.UserID) (models.UsersList, e
 }
 
 func (s *MongoStorage) GetFeed(userId models.UserID, page int, size int) (models.PostsPage, error) {
-	panic("not implemented")
+	subscriptions, err := s.GetSubscriptions(userId)
+	if err != nil {
+		return models.PostsPage{}, err
+	}
+
+	allPosts := make([]models.Post, 0)
+	for _, userId := range subscriptions.Users {
+		allUserPosts, err := s.getAllUserPosts(userId)
+		if err != nil {
+			return models.PostsPage{}, err
+		}
+		allPosts = append(allPosts, allUserPosts...)
+	}
+	return getPostsPage(allPosts, page, size)
 }
 
 func NewMongoStorage(mongoUrl string, mongoDbName string) *MongoStorage {
