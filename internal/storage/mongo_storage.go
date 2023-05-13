@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sort"
+	"strings"
 
 	"github.com/ikolcov/microblog/internal/models"
 	"go.mongodb.org/mongo-driver/bson"
@@ -14,7 +16,18 @@ import (
 )
 
 type MongoStorage struct {
-	posts *mongo.Collection
+	posts         *mongo.Collection
+	subscriptions *mongo.Collection
+}
+
+func addIndex(collection *mongo.Collection, field string) {
+	index := mongo.IndexModel{
+		Keys: bson.D{{field, 1}},
+	}
+	_, err := collection.Indexes().CreateOne(context.TODO(), index)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (s *MongoStorage) AddPost(post models.Post) (models.PostID, error) {
@@ -71,46 +84,46 @@ func (s *MongoStorage) UpdatePost(postUpdate models.Post) (models.Post, error) {
 
 func (s *MongoStorage) GetUserPosts(userId models.UserID, page int, size int) (models.PostsPage, error) {
 	findOptions := options.Find()
-	postsPage := models.PostsPage{}
 	cur, err := s.posts.Find(context.TODO(), bson.D{{"authorid", userId}}, findOptions)
 	if err != nil {
-		return postsPage, err
+		return models.PostsPage{}, err
 	}
 	posts := make([]models.Post, 0)
 	for cur.Next(context.TODO()) {
 		var elem models.Post
 		if err := cur.Decode(&elem); err != nil {
-			return postsPage, err
+			return models.PostsPage{}, err
 		}
 		var id models.HexId
 		if err := cur.Decode(&id); err != nil {
-			return postsPage, err
+			return models.PostsPage{}, err
 		}
 		elem.Id = models.PostID(id.ID.Hex())
 		posts = append(posts, elem)
 	}
 	if err := cur.Err(); err != nil {
-		return postsPage, err
+		return models.PostsPage{}, err
 	}
 	cur.Close(context.TODO())
 
-	l := 0
-	r := len(posts) - 1
-	for l < r {
-		posts[l], posts[r] = posts[r], posts[l]
-		l++
-		r--
-	}
+	return getPostsPage(posts, page, size)
+}
+
+func getPostsPage(posts []models.Post, page int, size int) (models.PostsPage, error) {
+	sort.Slice(posts, func(i, j int) bool {
+		return posts[i].CreatedAt > posts[j].CreatedAt
+	})
 
 	from := (page - 1) * size
 	if from < 0 || from > len(posts) {
-		return postsPage, models.ErrBadRequest
+		return models.PostsPage{}, models.ErrBadRequest
 	}
 	to := from + size
 	if to > len(posts) {
 		to = len(posts)
 	}
 
+	postsPage := models.PostsPage{}
 	postsPage.Posts = posts[from:to]
 	if to < len(posts) {
 		postsPage.NextPage = fmt.Sprint(page + 1)
@@ -118,7 +131,65 @@ func (s *MongoStorage) GetUserPosts(userId models.UserID, page int, size int) (m
 	return postsPage, nil
 }
 
-func NewMongoStorage(mongoUrl string, mongoDbName string) Storage {
+func (s *MongoStorage) AddSubscription(subscription models.Subscription) error {
+	if subscription.From == "" || subscription.To == "" || subscription.From == subscription.To {
+		return models.ErrBadRequest
+	}
+
+	_, err := s.subscriptions.InsertOne(context.TODO(), subscription)
+	if err != nil && strings.Contains(err.Error(), "duplicate") {
+		return nil
+	}
+	return err
+}
+
+func (s *MongoStorage) GetSubscriptions(userId models.UserID) (models.UsersList, error) {
+	cur, err := s.subscriptions.Find(context.TODO(), bson.D{{"from", userId}}, options.Find())
+	if err != nil {
+		return models.UsersList{}, err
+	}
+	users := make([]models.UserID, 0)
+	for cur.Next(context.TODO()) {
+		var elem models.Subscription
+		if err := cur.Decode(&elem); err != nil {
+			return models.UsersList{}, err
+		}
+		users = append(users, elem.To)
+	}
+	if err := cur.Err(); err != nil {
+		return models.UsersList{}, err
+	}
+	cur.Close(context.TODO())
+
+	return models.UsersList{users}, nil
+}
+
+func (s *MongoStorage) GetSubscribers(userId models.UserID) (models.UsersList, error) {
+	cur, err := s.subscriptions.Find(context.TODO(), bson.D{{"to", userId}}, options.Find())
+	if err != nil {
+		return models.UsersList{}, err
+	}
+	users := make([]models.UserID, 0)
+	for cur.Next(context.TODO()) {
+		var elem models.Subscription
+		if err := cur.Decode(&elem); err != nil {
+			return models.UsersList{}, err
+		}
+		users = append(users, elem.From)
+	}
+	if err := cur.Err(); err != nil {
+		return models.UsersList{}, err
+	}
+	cur.Close(context.TODO())
+
+	return models.UsersList{users}, nil
+}
+
+func (s *MongoStorage) GetFeed(userId models.UserID, page int, size int) (models.PostsPage, error) {
+	panic("not implemented")
+}
+
+func NewMongoStorage(mongoUrl string, mongoDbName string) *MongoStorage {
 	clientOptions := options.Client().ApplyURI(mongoUrl)
 	client, err := mongo.Connect(context.TODO(), clientOptions)
 	if err != nil {
@@ -130,17 +201,22 @@ func NewMongoStorage(mongoUrl string, mongoDbName string) Storage {
 		log.Fatal(err)
 	}
 
-	posts := client.Database(mongoDbName).Collection("postx")
+	posts := client.Database(mongoDbName).Collection("posts")
+	subscriptions := client.Database(mongoDbName).Collection("subscriptions")
 
-	indexModel := mongo.IndexModel{
-		Keys: bson.D{{"authorid", 1}},
-	}
-	_, err = posts.Indexes().CreateOne(context.TODO(), indexModel)
-	if err != nil {
+	addIndex(posts, "authorid")
+	addIndex(subscriptions, "from")
+	addIndex(subscriptions, "to")
+
+	if _, err := subscriptions.Indexes().CreateOne(context.TODO(), mongo.IndexModel{
+		Keys:    bson.D{{"from", 1}, {"to", 1}},
+		Options: options.Index().SetUnique(true),
+	}); err != nil {
 		panic(err)
 	}
 
 	return &MongoStorage{
-		posts: posts,
+		posts:         posts,
+		subscriptions: subscriptions,
 	}
 }

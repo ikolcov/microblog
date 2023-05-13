@@ -6,6 +6,10 @@ type PostID string
 
 type UserID string
 
+type UsersList struct {
+	Users []UserID `json:"users"`
+}
+
 type Post struct {
 	Id             PostID `json:"id"`
 	Text           string `json:"text"`
@@ -21,4 +25,9 @@ type HexId struct {
 type PostsPage struct {
 	Posts    []Post `json:"posts"`
 	NextPage string `json:"nextPage,omitempty"`
+}
+
+type Subscription struct {
+	From UserID
+	To   UserID
 }

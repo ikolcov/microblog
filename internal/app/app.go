@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/RichardKnop/machinery/v1"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/ikolcov/microblog/internal/models"
@@ -15,42 +16,24 @@ import (
 	"github.com/ikolcov/microblog/internal/utils"
 )
 
-type StorageMode uint16
-
-const (
-	InMemory StorageMode = iota
-	Mongo
-	Cached
-)
-
 type AppConfig struct {
 	Port        uint16
-	Mode        StorageMode
 	MongoUrl    string
 	MongoDbName string
 	RedisUrl    string
 }
 
 type App struct {
-	config  AppConfig
-	storage storage.Storage
+	config          AppConfig
+	storage         *storage.MongoStorage
+	machineryServer *machinery.Server
 }
 
-func New(config AppConfig) *App {
-	var appStorage storage.Storage
-	switch config.Mode {
-	case InMemory:
-		appStorage = storage.NewInMemoryStorage()
-	case Mongo:
-		appStorage = storage.NewMongoStorage(config.MongoUrl, config.MongoDbName)
-	case Cached:
-		appStorage = storage.NewCachedStorage(config.RedisUrl, storage.NewMongoStorage(config.MongoUrl, config.MongoDbName))
-	default:
-		panic("Unknown storage type")
-	}
+func New(config AppConfig, machineryServer *machinery.Server) *App {
 	return &App{
-		config:  config,
-		storage: appStorage,
+		config:          config,
+		storage:         storage.NewMongoStorage(config.MongoUrl, config.MongoDbName),
+		machineryServer: machineryServer,
 	}
 }
 
@@ -175,6 +158,48 @@ func (a *App) updatePost(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (a *App) subscribeToUser(w http.ResponseWriter, r *http.Request) {
+	from := models.UserID(r.Header.Get("System-Design-User-Id"))
+	to := models.UserID(chi.URLParam(r, "userId"))
+
+	err := a.storage.AddSubscription(models.Subscription{
+		From: from,
+		To:   to,
+	})
+	if err != nil {
+		utils.BadRequest(w, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (a *App) getSubscriptions(w http.ResponseWriter, r *http.Request) {
+	userId := models.UserID(r.Header.Get("System-Design-User-Id"))
+
+	usersList, err := a.storage.GetSubscriptions(userId)
+	if err != nil {
+		utils.BadRequest(w, err.Error())
+		return
+	}
+	utils.RespondJSON(w, http.StatusOK, usersList)
+}
+
+func (a *App) getSubscribers(w http.ResponseWriter, r *http.Request) {
+	userId := models.UserID(r.Header.Get("System-Design-User-Id"))
+
+	usersList, err := a.storage.GetSubscribers(userId)
+	if err != nil {
+		utils.BadRequest(w, err.Error())
+		return
+	}
+	utils.RespondJSON(w, http.StatusOK, usersList)
+}
+
+func (a *App) getFeed(w http.ResponseWriter, r *http.Request) {
+	// userId := models.UserID(r.Header.Get("System-Design-User-Id"))
+	panic("not implemented")
+}
+
 func (a *App) Start() {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -185,6 +210,10 @@ func (a *App) Start() {
 	r.Get("/api/v1/users/{userId}/posts", a.getUserPosts)
 	r.Get("/maintenance/ping", a.ping)
 	r.Patch("/api/v1/posts/{postId}", a.updatePost)
+	r.Post("/api/v1/users/{userId}/subscribe", a.subscribeToUser)
+	r.Get("/api/v1/subscriptions", a.getSubscriptions)
+	r.Get("/api/v1/subscribers", a.getSubscribers)
+	r.Get("/api/v1/feed", a.getFeed)
 
 	http.ListenAndServe(fmt.Sprintf(":%v", a.config.Port), r)
 }

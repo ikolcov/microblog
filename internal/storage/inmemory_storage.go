@@ -9,10 +9,28 @@ import (
 )
 
 type InMemoryStorage struct {
-	posts       []models.Post
-	postsByUser map[models.UserID][]int
-	mutex       sync.RWMutex
+	posts         []models.Post
+	postsByUser   map[models.UserID][]int
+	subscriptions map[models.UserID][]models.UserID
+	subscribers   map[models.UserID][]models.UserID
+	mutex         sync.RWMutex
 }
+
+// func (s *InMemoryStorage) feed(userId models.UserID) {
+// 	s.mutex.RLock()
+// 	defer s.mutex.RUnlock()
+
+// 	if _, found := s.subscriptions[userId]; !found {
+// 		s.subscriptions[userId] = make([]models.UserID, 0)
+// 	}
+
+// 	posts := make([]models.Post, 0)
+// 	for _, subscription := range s.subscriptions[userId] {
+// 		for _, postId := range s.postsByUser[subscription] {
+// 			posts = append(posts, s.posts[postId])
+// 		}
+// 	}
+// }
 
 func (s *InMemoryStorage) AddPost(post models.Post) (models.PostID, error) {
 	s.mutex.Lock()
