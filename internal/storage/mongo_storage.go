@@ -110,6 +110,33 @@ func (s *MongoStorage) getAllUserPosts(userId models.UserID) ([]models.Post, err
 	return posts, nil
 }
 
+func (s *MongoStorage) getAllUsersPosts(usersId []models.UserID) ([]models.Post, error) {
+	findOptions := options.Find()
+	cur, err := s.posts.Find(context.TODO(), bson.D{{"authorid", bson.M{"$in": usersId}}}, findOptions)
+	if err != nil {
+		return nil, err
+	}
+	posts := make([]models.Post, 0)
+	for cur.Next(context.TODO()) {
+		var elem models.Post
+		if err := cur.Decode(&elem); err != nil {
+			return nil, err
+		}
+		var id models.HexId
+		if err := cur.Decode(&id); err != nil {
+			return nil, err
+		}
+		elem.Id = models.PostID(id.ID.Hex())
+		posts = append(posts, elem)
+	}
+	if err := cur.Err(); err != nil {
+		return nil, err
+	}
+	cur.Close(context.TODO())
+
+	return posts, nil
+}
+
 func (s *MongoStorage) GetUserPosts(userId models.UserID, page int, size int) (models.PostsPage, error) {
 	allUserPosts, err := s.getAllUserPosts(userId)
 	if err != nil {
@@ -208,13 +235,9 @@ func (s *MongoStorage) UpdateUserFeed(userId string) error {
 		return err
 	}
 
-	allPosts := make([]models.Post, 0)
-	for _, userId := range subscriptions.Users {
-		allUserPosts, err := s.getAllUserPosts(userId)
-		if err != nil {
-			return err
-		}
-		allPosts = append(allPosts, allUserPosts...)
+	allPosts, err := s.getAllUsersPosts(subscriptions.Users)
+	if err != nil {
+		return err
 	}
 
 	sort.Slice(allPosts, func(i, j int) bool {
