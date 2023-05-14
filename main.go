@@ -8,6 +8,7 @@ import (
 	"github.com/RichardKnop/machinery/v1/config"
 	"github.com/RichardKnop/machinery/v1/log"
 	"github.com/ikolcov/microblog/internal/app"
+	"github.com/ikolcov/microblog/internal/storage"
 )
 
 func getServerPort() uint16 {
@@ -19,11 +20,7 @@ func getServerPort() uint16 {
 	panic("Port should be set in env var SERVER_PORT")
 }
 
-func encodeTaskFunc(data, password string) (string, error) {
-	return "", nil
-}
-
-func startServer(redisUrl string) (*machinery.Server, error) {
+func startServer(redisUrl string, storage *storage.MongoStorage) (*machinery.Server, error) {
 	cnf := &config.Config{
 		DefaultQueue:    "machinery_tasks",
 		ResultsExpireIn: 3600,
@@ -47,7 +44,7 @@ func startServer(redisUrl string) (*machinery.Server, error) {
 
 	// Register tasks
 	tasks := map[string]interface{}{
-		"encode": encodeTaskFunc,
+		"notify": storage.UpdateUserFeed,
 	}
 
 	return server, server.RegisterTasks(tasks)
@@ -72,13 +69,12 @@ func main() {
 	mongoDbName := os.Getenv("MONGO_DBNAME")
 	redisUrl := os.Getenv("REDIS_URL")
 
-	machineryServer, err := startServer(redisUrl)
-	if err != nil {
-		panic(err)
-	}
-
 	switch os.Getenv("APP_MODE") {
 	case "SERVER":
+		machineryServer, err := startServer(redisUrl, nil)
+		if err != nil {
+			panic(err)
+		}
 		appConfig := app.AppConfig{
 			Port:        getServerPort(),
 			MongoUrl:    mongoUrl,
@@ -88,6 +84,10 @@ func main() {
 
 		app.New(appConfig, machineryServer).Start()
 	case "WORKER":
+		machineryServer, err := startServer(redisUrl, storage.NewMongoStorage(mongoUrl, mongoDbName))
+		if err != nil {
+			panic(err)
+		}
 		worker(machineryServer)
 	default:
 		panic("APP_MODE must be either SERVER or WORKER")

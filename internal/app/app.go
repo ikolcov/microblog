@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/RichardKnop/machinery/v1"
+	"github.com/RichardKnop/machinery/v1/tasks"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/ikolcov/microblog/internal/models"
@@ -37,6 +39,21 @@ func New(config AppConfig, machineryServer *machinery.Server) *App {
 	}
 }
 
+func (a *App) notifySubscriber(userId models.UserID) {
+	task := tasks.Signature{
+		Name: "notify",
+		Args: []tasks.Arg{
+			{
+				Type:  "string",
+				Value: userId,
+			},
+		},
+	}
+	if _, err := a.machineryServer.SendTaskWithContext(context.Background(), &task); err != nil {
+		panic(err)
+	}
+}
+
 func (a *App) addPost(w http.ResponseWriter, r *http.Request) {
 	var post models.Post
 	decoder := json.NewDecoder(r.Body)
@@ -59,6 +76,13 @@ func (a *App) addPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	post.Id = postId
+
+	subscribers, err := a.storage.GetSubscribers(post.AuthorId)
+	if err == nil {
+		for _, subscriber := range subscribers.Users {
+			a.notifySubscriber(subscriber)
+		}
+	}
 
 	err = utils.RespondJSON(w, http.StatusOK, post)
 	if err != nil {
@@ -150,6 +174,13 @@ func (a *App) updatePost(w http.ResponseWriter, r *http.Request) {
 	} else if err != nil {
 		utils.BadRequest(w, err.Error())
 		return
+	}
+
+	subscribers, err := a.storage.GetSubscribers(post.AuthorId)
+	if err == nil {
+		for _, subscriber := range subscribers.Users {
+			a.notifySubscriber(subscriber)
+		}
 	}
 
 	err = utils.RespondJSON(w, http.StatusOK, post)

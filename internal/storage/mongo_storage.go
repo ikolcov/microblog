@@ -202,8 +202,8 @@ func (s *MongoStorage) GetSubscribers(userId models.UserID) (models.UsersList, e
 	return models.UsersList{users}, nil
 }
 
-func (s *MongoStorage) updateUserFeed(userId models.UserID) error {
-	subscriptions, err := s.GetSubscriptions(userId)
+func (s *MongoStorage) UpdateUserFeed(userId string) error {
+	subscriptions, err := s.GetSubscriptions(models.UserID(userId))
 	if err != nil {
 		return err
 	}
@@ -229,10 +229,6 @@ func (s *MongoStorage) updateUserFeed(userId models.UserID) error {
 }
 
 func (s *MongoStorage) GetFeed(userId models.UserID, page int, size int) (models.PostsPage, error) {
-	if err := s.updateUserFeed(userId); err != nil {
-		return models.PostsPage{}, err
-	}
-
 	var result models.Feed
 	if err := s.feed.FindOne(context.TODO(), bson.D{{"user", userId}}).Decode(&result); err != nil {
 		return models.PostsPage{}, err
