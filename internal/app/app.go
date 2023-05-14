@@ -202,6 +202,9 @@ func (a *App) subscribeToUser(w http.ResponseWriter, r *http.Request) {
 		utils.BadRequest(w, err.Error())
 		return
 	}
+
+	a.notifySubscriber(from)
+
 	w.WriteHeader(http.StatusOK)
 }
 
